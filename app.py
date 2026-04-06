@@ -11,8 +11,11 @@ app = Flask(
     static_folder=os.path.join(BASE_DIR, 'static')
 )
 
-# Database path - works in both local and Vercel environments
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
+# Database path - use /tmp for serverless environments (Vercel) where filesystem is read-only
+if os.environ.get('VERCEL'):
+    DB_PATH = '/tmp/database.db'
+else:
+    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
 
 def get_db_path():
     return DB_PATH
