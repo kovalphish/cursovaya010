@@ -1,15 +1,12 @@
 import sys
 import os
 
-# Add parent directory to path to import app
+# Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import app
+# Initialize the database before importing the app
+from app import init_db
+init_db()
 
-# Initialize database on first load
-if not os.path.exists('database.db'):
-    from app import init_db
-    init_db()
-
-if __name__ == "__main__":
-    app.run(debug=True)
+# Import the Flask app
+from app import app as app
