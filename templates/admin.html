@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель инспектора | Добавление штрафа</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --success: #3872be;
+            --bg: #f0f2f5;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .admin-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .admin-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        /* ТВОЯ ИКОНКА В ЗАГОЛОВКЕ */
+        .admin-logo {
+            width: 60px; /* Здесь можно менять размер иконки */
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            margin: 0;
+            color: var(--text);
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #666;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #edeff2;
+            border-radius: 10px;
+            font-size: 15px;
+            box-sizing: border-box;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            outline: none;
+            background: #fff;
+        }
+
+        /* Автоматические заглавные буквы для госномера */
+        input[name="car_number"] {
+            text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+button {
+    width: 100%;
+    padding: 20px;
+    background: var(--success);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+        button:hover {
+            background: #277cae;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        /* ТВОЯ ИКОНКА НА КНОПКЕ */
+        .btn-icon {
+            width: 20px;
+            height: 20px;
+            filter: brightness(0) invert(1); /* Делает иконку белой */
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 25px;
+            text-decoration: none;
+            color: #888;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+
+        .back-link:hover {
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="admin-card">
+        <div class="admin-header">
+            <img src="{{ url_for('static', filename='images/admin.png') }}" alt="Admin" class="admin-logo">
+            <h2>Новое нарушение</h2>
+        </div>
+
+        <form method="POST">
+            <div class="form-group">
+                <label>Госномер автомобиля</label>
+                <input type="text" name="car_number" placeholder="А123ВЕ77" 
+                       pattern="^[А-Яа-яA-Za-z]{1}\d{3}[А-Яа-яA-Za-z]{2}\d{2,3}$" 
+                       title="Формат: буква, 3 цифры, 2 буквы, регион" required>
+            </div>
+
+            <div class="form-group">
+                <label>Тип нарушения</label>
+                <input type="text" name="violation" placeholder="Напр: Превышение скорости" required>
+            </div>
+
+            <div class="form-group">
+<label>Сумма штрафа (₽)</label>
+                <input type="number" name="amount" placeholder="500" required>
+            </div>
+
+            <div class="form-group">
+                <label>Дата и время</label>
+                <input type="datetime-local" name="vio_time" required>
+            </div>
+
+            <div class="form-group">
+                <label>Место фиксации</label>
+                <input type="text" name="location" placeholder="ул. Ленина, д. 10" required>
+            </div>
+
+            <button type="submit">
+                <img src="{{ url_for('static', filename='images/plus.png') }}" class="btn-icon">
+                Сохранить в базу
+            </button>
+        </form>
+
+        <a href="/" class="back-link">← Вернуться к поиску</a>
+    </div>
+
+</body>
+</html>
