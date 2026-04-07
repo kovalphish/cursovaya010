@@ -14,6 +14,12 @@ app = Flask(
 # Database path - use /tmp for serverless environments (Vercel) where filesystem is read-only
 if os.environ.get('VERCEL'):
     DB_PATH = '/tmp/database.db'
+    # Копируем исходную базу данных из репозитория в /tmp при первом запуске
+    original_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
+    # Копируем только если база ещё не была скопирована
+    if os.path.exists(original_db) and not os.path.exists(DB_PATH):
+        import shutil
+        shutil.copyfile(original_db, DB_PATH)
 else:
     DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
 
