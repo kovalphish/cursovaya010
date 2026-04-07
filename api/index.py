@@ -1,12 +1,10 @@
 import sys
 import os
 
-# Add parent directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Initialize the database before importing the app
-from app import init_db
-init_db()
+from app import app
 
-# Import the Flask app
-from app import app as app
+# Это ОБЯЗАТЕЛЬНО для работы Vercel Python Runtime!
+# Vercel ожидает переменную `app` на экспорте как WSGI приложение
+application = app

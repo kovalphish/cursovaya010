@@ -75,22 +75,36 @@ def pay():
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
+    error = None
     if request.method == 'POST':
-        car_number = request.form.get('car_number').strip().upper()
-        violation = request.form.get('violation')
-        amount = request.form.get('amount')
-        vio_time = request.form.get('vio_time')
-        location = request.form.get('location')
+        car_number = request.form.get('car_number', '').strip().upper()
+        violation = request.form.get('violation', '').strip()
+        amount = request.form.get('amount', '').strip()
+        vio_time = request.form.get('vio_time', '').strip()
+        location = request.form.get('location', '').strip()
 
-        conn = sqlite3.connect(get_db_path())
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location) VALUES (?, ?, ?, ?, ?)",
-                       (car_number, violation, amount, vio_time, location))
-        conn.commit()
-        conn.close()
-        return redirect(url_for('admin'))
-    return render_template('admin.html')
+        if not car_number:
+            error = "Введите номер автомобиля"
+        else:
+            try:
+                amount = float(amount) if amount else 0.0
+                conn = sqlite3.connect(get_db_path())
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location) VALUES (?, ?, ?, ?, ?)",
+                               (car_number, violation, amount, vio_time, location))
+                conn.commit()
+                conn.close()
+                return redirect(url_for('admin'))
+            except ValueError:
+                error = "Сумма штрафа должна быть числом"
+            except Exception as e:
+                error = f"Ошибка базы данных: {str(e)}"
+                
+    return render_template('admin.html', error=error)
+
+# Initialize database on module load
+init_db()
 
 if __name__ == '__main__':
-    init_db()
-    app.run(debug=True)
+    debug_mode = not os.environ.get('VERCEL')
+    app.run(debug=debug_mode, host='0.0.0.0')
