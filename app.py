@@ -46,14 +46,42 @@ def init_db():
 def index():
     fines = None
     search_query = ""
+    error = None
+    debug_info = []
+    
+    # Отладочная информация для Vercel
+    debug_info.append(f"✅ Режим: {'VERCEL' if os.environ.get('VERCEL') else 'LOCAL'}")
+    debug_info.append(f"📁 Путь к базе: {get_db_path()}")
+    debug_info.append(f"📁 База существует: {'✅ ДА' if os.path.exists(get_db_path()) else '❌ НЕТ'}")
+    
+    if os.environ.get('VERCEL'):
+        debug_info.append(f"📁 Исходная база существует: {'✅ ДА' if os.path.exists(os.path.join(BASE_DIR, 'database.db')) else '❌ НЕТ'}")
+    
     if request.method == 'POST':
         search_query = request.form.get('car_number', '').strip().upper()
-        conn = sqlite3.connect(get_db_path())
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?)", (search_query,))
-        fines = cursor.fetchall()
-        conn.close()
-    return render_template('index.html', fines=fines, query=search_query)
+        
+        if not search_query:
+            error = "⚠️ Введите номер автомобиля"
+        else:
+            try:
+                conn = sqlite3.connect(get_db_path())
+                cursor = conn.cursor()
+                
+                # Сначала проверяем сколько всего записей в таблице
+                cursor.execute("SELECT COUNT(*) FROM Fines")
+                total = cursor.fetchone()[0]
+                debug_info.append(f"📊 Всего записей в базе: {total}")
+                
+                cursor.execute("SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?)", (search_query,))
+                fines = cursor.fetchall()
+                debug_info.append(f"🔍 Найдено штрафов: {len(fines) if fines else 0}")
+                
+                conn.close()
+            except Exception as e:
+                error = f"❌ ОШИБКА БАЗЫ ДАННЫХ: {str(e)}"
+                debug_info.append(f"💥 Ошибка: {str(e)}")
+    
+    return render_template('index.html', fines=fines, query=search_query, error=error, debug_info=debug_info)
 
 
 @app.route('/pay', methods=['POST'])
