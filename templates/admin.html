@@ -170,7 +170,20 @@ button {
             </button>
         </form>
 
-        <a href="/" class="back-link">← Вернуться к поиску</a>
+        <!-- Отладочная информация только для админа -->
+        {% if debug_info %}
+        <div style="margin-top: 30px; padding: 16px; background: #e7f5ff; border-radius: 12px; font-family: monospace; font-size: 12px;">
+            <div style="font-weight: bold; margin-bottom: 10px;">🔧 Статус системы:</div>
+            {% for line in debug_info %}
+            <div style="padding: 3px 0;">{{ line }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 20px; display: flex; justify-content: space-between;">
+            <a href="/" class="back-link">← Вернуться к поиску</a>
+            <a href="/admin/logout" class="back-link" style="color: #dc2626;">Выйти ✕</a>
+        </div>
     </div>
 
 </body>

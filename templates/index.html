@@ -67,15 +67,6 @@
         </div>
         {% endif %}
 
-        <!-- Отладочная информация -->
-        {% if debug_info %}
-        <div style="margin-top: 20px; padding: 16px; background: #e7f5ff; border-radius: 12px; font-family: monospace; font-size: 13px;">
-            <div style="font-weight: bold; margin-bottom: 10px;">🔧 Статус системы:</div>
-            {% for line in debug_info %}
-            <div style="padding: 4px 0;">{{ line }}</div>
-            {% endfor %}
-        </div>
-        {% endif %}
 
         {% if fines is not none %}
             {% if fines %}

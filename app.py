@@ -1,6 +1,6 @@
 import sqlite3
 import os
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 
 # Get the base directory (where app.py is located)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -10,6 +10,8 @@ app = Flask(
     template_folder=os.path.join(BASE_DIR, 'templates'),
     static_folder=os.path.join(BASE_DIR, 'static')
 )
+app.secret_key = 'bdf872a9d3ef5c7a8b9e1d2f3a4c5b6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2'
+ADMIN_PASSWORD = 'admin123'
 
 # Database path - use /tmp for serverless environments (Vercel) where filesystem is read-only
 if os.environ.get('VERCEL'):
@@ -47,15 +49,6 @@ def index():
     fines = None
     search_query = ""
     error = None
-    debug_info = []
-    
-    # Отладочная информация для Vercel
-    debug_info.append(f"✅ Режим: {'VERCEL' if os.environ.get('VERCEL') else 'LOCAL'}")
-    debug_info.append(f"📁 Путь к базе: {get_db_path()}")
-    debug_info.append(f"📁 База существует: {'✅ ДА' if os.path.exists(get_db_path()) else '❌ НЕТ'}")
-    
-    if os.environ.get('VERCEL'):
-        debug_info.append(f"📁 Исходная база существует: {'✅ ДА' if os.path.exists(os.path.join(BASE_DIR, 'database.db')) else '❌ НЕТ'}")
     
     if request.method == 'POST':
         search_query = request.form.get('car_number', '').strip().upper()
@@ -66,22 +59,13 @@ def index():
             try:
                 conn = sqlite3.connect(get_db_path())
                 cursor = conn.cursor()
-                
-                # Сначала проверяем сколько всего записей в таблице
-                cursor.execute("SELECT COUNT(*) FROM Fines")
-                total = cursor.fetchone()[0]
-                debug_info.append(f"📊 Всего записей в базе: {total}")
-                
                 cursor.execute("SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?)", (search_query,))
                 fines = cursor.fetchall()
-                debug_info.append(f"🔍 Найдено штрафов: {len(fines) if fines else 0}")
-                
                 conn.close()
             except Exception as e:
-                error = f"❌ ОШИБКА БАЗЫ ДАННЫХ: {str(e)}"
-                debug_info.append(f"💥 Ошибка: {str(e)}")
+                error = f"❌ Ошибка соединения с базой данных"
     
-    return render_template('index.html', fines=fines, query=search_query, error=error, debug_info=debug_info)
+    return render_template('index.html', fines=fines, query=search_query, error=error)
 
 
 @app.route('/pay', methods=['POST'])
@@ -107,9 +91,49 @@ def pay():
 
     return render_template('index.html', fines=fines, query=car_number)
 
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    error = None
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        if password == ADMIN_PASSWORD:
+            session['admin_logged'] = True
+            return redirect(url_for('admin'))
+        else:
+            error = "❌ Неверный пароль"
+    return render_template('login.html', error=error)
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('admin_logged', None)
+    return redirect(url_for('index'))
+
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
+    if not session.get('admin_logged'):
+        return redirect(url_for('admin_login'))
+    
     error = None
+    debug_info = []
+    
+    # Отладочная информация только для админа
+    debug_info.append(f"✅ Режим: {'VERCEL' if os.environ.get('VERCEL') else 'LOCAL'}")
+    debug_info.append(f"📁 Путь к базе: {get_db_path()}")
+    debug_info.append(f"📁 База существует: {'✅ ДА' if os.path.exists(get_db_path()) else '❌ НЕТ'}")
+    
+    if os.environ.get('VERCEL'):
+        debug_info.append(f"📁 Исходная база существует: {'✅ ДА' if os.path.exists(os.path.join(BASE_DIR, 'database.db')) else '❌ НЕТ'}")
+    
+    try:
+        conn = sqlite3.connect(get_db_path())
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM Fines")
+        total = cursor.fetchone()[0]
+        debug_info.append(f"📊 Всего записей в базе: {total}")
+        conn.close()
+    except Exception as e:
+        debug_info.append(f"💥 Ошибка: {str(e)}")
+    
     if request.method == 'POST':
         car_number = request.form.get('car_number', '').strip().upper()
         violation = request.form.get('violation', '').strip()
@@ -134,7 +158,7 @@ def admin():
             except Exception as e:
                 error = f"Ошибка базы данных: {str(e)}"
                 
-    return render_template('admin.html', error=error)
+    return render_template('admin.html', error=error, debug_info=debug_info)
 
 # Initialize database on module load
 init_db()

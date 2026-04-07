@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в админ панель</title>
+    <style>
+        :root { --primary: #4361ee; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #e9ecef; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card { background: white; padding: 40px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); width: 95%; max-width: 400px; }
+        .btn { background: var(--primary); color: white; border: none; padding: 16px 30px; border-radius: 14px; cursor: pointer; font-weight: 600; transition: 0.3s; }
+        input { width: 100%; padding: 16px 20px; border: 2px solid #dee2e6; border-radius: 14px; font-size: 16px; outline: none; transition: 0.3s; margin: 10px 0 20px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2 style="text-align: center; margin-bottom: 30px;">🔐 Вход в админ панель</h2>
+
+        {% if error %}
+        <div style="margin-bottom: 20px; padding: 16px; background: #fff3cd; border-radius: 12px; color: #856404;">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST">
+            <label>Пароль администратора:</label>
+            <input type="password" name="password" placeholder="Введите пароль" required autofocus>
+            <button type="submit" class="btn" style="width: 100%;">Войти</button>
+        </form>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="/" style="color: #6c757d; text-decoration: none;">← Вернуться на главную</a>
+        </div>
+    </div>
+</body>
+</html>
