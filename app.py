@@ -38,10 +38,16 @@ def init_db():
             Violation TEXT,
             Amount REAL,
             VioTime TEXT,
-            Location TEXT
+            Location TEXT,
+            status TEXT DEFAULT 'unpaid'
         )
     ''')
-    conn.commit()
+    # Миграция: добавляем поле status если его нет (для старых баз)
+    try:
+        cursor.execute("ALTER TABLE Fines ADD COLUMN status TEXT DEFAULT 'unpaid'")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # Поле уже существует
     conn.close()
 
 @app.route('/', methods=['GET', 'POST'])
@@ -60,7 +66,7 @@ def index():
             try:
                 conn = sqlite3.connect(get_db_path())
                 cursor = conn.cursor()
-                cursor.execute("SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?)", (search_query,))
+                cursor.execute("SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?) AND status = 'unpaid'", (search_query,))
                 fines = cursor.fetchall()
                 conn.close()
                 success = f"✅ Поиск выполнен для номера: {search_query}"
@@ -79,17 +85,18 @@ def pay():
     if fine_id:
         conn = sqlite3.connect(get_db_path())
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM Fines WHERE id = ?", (fine_id,))
+        # Помечаем штраф как оплаченный вместо удаления
+        cursor.execute("UPDATE Fines SET status = 'paid' WHERE id = ?", (fine_id,))
         conn.commit()
 
-        # После оплаты перезагружаем список штрафов для этого автомобиля
+        # После оплаты перезагружаем список неоплаченных штрафов для этого автомобиля
         cursor.execute(
-            "SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?)",
+            "SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?) AND status = 'unpaid'",
             (car_number,)
         )
         fines = cursor.fetchall()
         conn.close()
-        success = "✅ Штраф успешно оплачен и удален из базы"
+        success = "✅ Штраф успешно оплачен"
     else:
         fines = None
 
