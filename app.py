@@ -48,6 +48,9 @@ def init_db():
         conn.commit()
     except sqlite3.OperationalError:
         pass  # Поле уже существует
+    # Устанавливаем status='unpaid' для всех записей где status IS NULL (старые записи)
+    cursor.execute("UPDATE Fines SET status = 'unpaid' WHERE status IS NULL OR status = ''")
+    conn.commit()
     conn.close()
 
 @app.route('/', methods=['GET', 'POST'])
