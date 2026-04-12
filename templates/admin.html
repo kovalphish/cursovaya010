@@ -136,18 +136,6 @@ button {
             <h2>Новое нарушение</h2>
         </div>
 
-        {% if success %}
-        <div style="margin-bottom: 20px; padding: 16px; background: #d4edda; border-radius: 12px; color: #155724; border-left: 4px solid #28a745; text-align: center;">
-            {{ success }}
-        </div>
-        {% endif %}
-
-        {% if error %}
-        <div style="margin-bottom: 20px; padding: 16px; background: #f8d7da; border-radius: 12px; color: #721c24; border-left: 4px solid #dc3545; text-align: center;">
-            {{ error }}
-        </div>
-        {% endif %}
-
         <form method="POST">
             <div class="form-group">
                 <label>Госномер автомобиля</label>
