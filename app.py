@@ -42,12 +42,12 @@ def init_db():
             status TEXT DEFAULT 'unpaid'
         )
     ''')
-    # Миграция: добавляем поле status если его нет (для старых баз)
-    try:
+    # Миграция: проверяем и добавляем поле status если его нет (для старых баз)
+    cursor.execute("PRAGMA table_info(Fines)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'status' not in columns:
         cursor.execute("ALTER TABLE Fines ADD COLUMN status TEXT DEFAULT 'unpaid'")
         conn.commit()
-    except sqlite3.OperationalError:
-        pass  # Поле уже существует
     # Устанавливаем status='unpaid' для всех записей где status IS NULL (старые записи)
     cursor.execute("UPDATE Fines SET status = 'unpaid' WHERE status IS NULL OR status = ''")
     conn.commit()
