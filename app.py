@@ -31,26 +31,53 @@ def get_db_path():
 def init_db():
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Fines (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            CarNumber TEXT NOT NULL,
-            Violation TEXT,
-            Amount REAL,
-            VioTime TEXT,
-            Location TEXT,
-            status TEXT DEFAULT 'unpaid'
-        )
-    ''')
-    # Миграция: проверяем и добавляем поле status если его нет (для старых баз)
-    cursor.execute("PRAGMA table_info(Fines)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'status' not in columns:
-        cursor.execute("ALTER TABLE Fines ADD COLUMN status TEXT DEFAULT 'unpaid'")
+    
+    # Проверяем существование таблицы и её структуру
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Fines'")
+    table_exists = cursor.fetchone()
+    
+    if table_exists:
+        # Проверяем наличие колонки status
+        cursor.execute("PRAGMA table_info(Fines)")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        if 'status' not in columns:
+            # Миграция: создаем новую таблицу с правильной структурой
+            cursor.execute('''
+                CREATE TABLE Fines_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    CarNumber TEXT NOT NULL,
+                    Violation TEXT,
+                    Amount REAL,
+                    VioTime TEXT,
+                    Location TEXT,
+                    status TEXT DEFAULT 'unpaid'
+                )
+            ''')
+            # Копируем данные из старой таблицы
+            cursor.execute('''
+                INSERT INTO Fines_new (id, CarNumber, Violation, Amount, VioTime, Location, status)
+                SELECT id, CarNumber, Violation, Amount, VioTime, Location, 'unpaid' FROM Fines
+            ''')
+            # Удаляем старую таблицу и переименовываем новую
+            cursor.execute("DROP TABLE Fines")
+            cursor.execute("ALTER TABLE Fines_new RENAME TO Fines")
+            conn.commit()
+    else:
+        # Создаем таблицу если её нет
+        cursor.execute('''
+            CREATE TABLE Fines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                CarNumber TEXT NOT NULL,
+                Violation TEXT,
+                Amount REAL,
+                VioTime TEXT,
+                Location TEXT,
+                status TEXT DEFAULT 'unpaid'
+            )
+        ''')
         conn.commit()
-    # Устанавливаем status='unpaid' для всех записей где status IS NULL (старые записи)
-    cursor.execute("UPDATE Fines SET status = 'unpaid' WHERE status IS NULL OR status = ''")
-    conn.commit()
+    
     conn.close()
 
 @app.route('/', methods=['GET', 'POST'])
@@ -75,6 +102,7 @@ def index():
                 success = f"✅ Поиск выполнен для номера: {search_query}"
             except Exception as e:
                 error = f"❌ Ошибка соединения с базой данных"
+    # GET запрос - оставляем fines=None, search_query="" чтобы страница была чистой
 
     return render_template('index.html', fines=fines, query=search_query, error=error, success=success)
 
@@ -163,7 +191,7 @@ def admin():
                 amount = float(amount) if amount else 0.0
                 conn = sqlite3.connect(get_db_path())
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location) VALUES (?, ?, ?, ?, ?)",
+                cursor.execute("INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location, status) VALUES (?, ?, ?, ?, ?, 'unpaid')",
                                (car_number, violation, amount, vio_time, location))
                 conn.commit()
                 conn.close()
