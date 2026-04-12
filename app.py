@@ -49,10 +49,11 @@ def index():
     fines = None
     search_query = ""
     error = None
-    
+    success = None
+
     if request.method == 'POST':
         search_query = request.form.get('car_number', '').strip().upper()
-        
+
         if not search_query:
             error = "⚠️ Введите номер автомобиля"
         else:
@@ -62,16 +63,18 @@ def index():
                 cursor.execute("SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?)", (search_query,))
                 fines = cursor.fetchall()
                 conn.close()
+                success = f"✅ Поиск выполнен для номера: {search_query}"
             except Exception as e:
                 error = f"❌ Ошибка соединения с базой данных"
-    
-    return render_template('index.html', fines=fines, query=search_query, error=error)
+
+    return render_template('index.html', fines=fines, query=search_query, error=error, success=success)
 
 
 @app.route('/pay', methods=['POST'])
 def pay():
     fine_id = request.form.get('fine_id')
     car_number = request.form.get('car_number', '').strip().upper()
+    success = None
 
     if fine_id:
         conn = sqlite3.connect(get_db_path())
@@ -86,10 +89,11 @@ def pay():
         )
         fines = cursor.fetchall()
         conn.close()
+        success = "✅ Штраф успешно оплачен и удален из базы"
     else:
         fines = None
 
-    return render_template('index.html', fines=fines, query=car_number)
+    return render_template('index.html', fines=fines, query=car_number, success=success)
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
@@ -134,6 +138,7 @@ def admin():
     except Exception as e:
         debug_info.append(f"💥 Ошибка: {str(e)}")
     
+    success = None
     if request.method == 'POST':
         car_number = request.form.get('car_number', '').strip().upper()
         violation = request.form.get('violation', '').strip()
@@ -152,13 +157,13 @@ def admin():
                                (car_number, violation, amount, vio_time, location))
                 conn.commit()
                 conn.close()
-                return redirect(url_for('admin'))
+                success = f"✅ Нарушение для {car_number} успешно добавлено"
             except ValueError:
                 error = "Сумма штрафа должна быть числом"
             except Exception as e:
                 error = f"Ошибка базы данных: {str(e)}"
-                
-    return render_template('admin.html', error=error, debug_info=debug_info)
+
+    return render_template('admin.html', error=error, success=success, debug_info=debug_info)
 
 # Initialize database on module load
 init_db()
