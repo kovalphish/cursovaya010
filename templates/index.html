@@ -51,8 +51,8 @@
 
 <form method="POST" class="search-form">
             <div class="input-wrapper">
-                <input type="text" name="car_number" placeholder="Госномер" value="{{ query }}" autocomplete="off"
-                       pattern="^[А-Яа-яA-Za-z]{1}\d{3}[А-Яа-яA-Za-z]{2}\d{2,3}$" required>
+                <input type="text" name="car_number" placeholder="Госномер"
+                       pattern="^[А-Яа-яA-Za-z]{1}\d{3}[А-Яа-яA-Za-z]{2}\d{2,3}$">
                 <div class="input-hint">Пример: А000АА77</div>
             </div>
             <button type="submit" class="btn-search">
@@ -67,6 +67,11 @@
         </div>
         {% endif %}
 
+        {% if success %}
+        <div style="margin-top: 20px; padding: 16px; background: #d4edda; border-radius: 12px; color: #155724; border-left: 4px solid #28a745;">
+            {{ success }}
+        </div>
+        {% endif %}
 
         {% if fines is not none %}
             {% if fines %}

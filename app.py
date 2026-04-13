@@ -13,91 +13,178 @@ app = Flask(
 app.secret_key = 'bdf872a9d3ef5c7a8b9e1d2f3a4c5b6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2'
 ADMIN_PASSWORD = 'admin123'
 
-# Database path - use /tmp for serverless environments (Vercel) where filesystem is read-only
+# Database path
 if os.environ.get('VERCEL'):
     DB_PATH = '/tmp/database.db'
-    # Копируем исходную базу данных из репозитория в /tmp при первом запуске
-    original_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
-    # Копируем только если база ещё не была скопирована
-    if os.path.exists(original_db) and not os.path.exists(DB_PATH):
-        import shutil
-        shutil.copyfile(original_db, DB_PATH)
 else:
-    DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
+    DB_PATH = os.path.join(BASE_DIR, 'database.db')
 
 def get_db_path():
     return DB_PATH
 
-def init_db():
-    conn = sqlite3.connect(get_db_path())
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS Fines (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            CarNumber TEXT NOT NULL,
-            Violation TEXT,
-            Amount REAL,
-            VioTime TEXT,
-            Location TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+def ensure_db():
+    """На Vercel: копируем базу из репозитория в /tmp если нужно, и гарантируем структуру"""
+    if os.environ.get('VERCEL'):
+        original_db = os.path.join(BASE_DIR, 'database.db')
+        if not os.path.exists(DB_PATH):
+            if os.path.exists(original_db):
+                import shutil
+                shutil.copyfile(original_db, DB_PATH)
+            else:
+                # Если файл не деплоился — создаём базу с нуля
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute('''
+                    CREATE TABLE Fines (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        CarNumber TEXT NOT NULL,
+                        Violation TEXT,
+                        Amount REAL,
+                        VioTime TEXT,
+                        Location TEXT,
+                        status TEXT DEFAULT 'unpaid'
+                    )
+                ''')
+                conn.commit()
+                conn.close()
+                return
+        # Проверяем структуру таблицы
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Fines'")
+        if not cursor.fetchone():
+            cursor.execute('''
+                CREATE TABLE Fines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    CarNumber TEXT NOT NULL,
+                    Violation TEXT,
+                    Amount REAL,
+                    VioTime TEXT,
+                    Location TEXT,
+                    status TEXT DEFAULT 'unpaid'
+                )
+            ''')
+            conn.commit()
+            conn.close()
+            return
+        cursor.execute("PRAGMA table_info(Fines)")
+        columns = [col[1] for col in cursor.fetchall()]
+        if 'status' not in columns:
+            cursor.execute('''
+                CREATE TABLE Fines_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    CarNumber TEXT NOT NULL,
+                    Violation TEXT,
+                    Amount REAL,
+                    VioTime TEXT,
+                    Location TEXT,
+                    status TEXT DEFAULT 'unpaid'
+                )
+            ''')
+            cursor.execute('''
+                INSERT INTO Fines_new (id, CarNumber, Violation, Amount, VioTime, Location, status)
+                SELECT id, CarNumber, Violation, Amount, VioTime, Location, 'unpaid' FROM Fines
+            ''')
+            cursor.execute("DROP TABLE Fines")
+            cursor.execute("ALTER TABLE Fines_new RENAME TO Fines")
+            conn.commit()
+        conn.close()
+    else:
+        # Локально — просто гарантируем что таблица есть
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Fines'")
+        if not cursor.fetchone():
+            cursor.execute('''
+                CREATE TABLE Fines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    CarNumber TEXT NOT NULL,
+                    Violation TEXT,
+                    Amount REAL,
+                    VioTime TEXT,
+                    Location TEXT,
+                    status TEXT DEFAULT 'unpaid'
+                )
+            ''')
+            conn.commit()
+        else:
+            cursor.execute("PRAGMA table_info(Fines)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'status' not in columns:
+                cursor.execute('''
+                    CREATE TABLE Fines_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        CarNumber TEXT NOT NULL,
+                        Violation TEXT,
+                        Amount REAL,
+                        VioTime TEXT,
+                        Location TEXT,
+                        status TEXT DEFAULT 'unpaid'
+                    )
+                ''')
+                cursor.execute('''
+                    INSERT INTO Fines_new (id, CarNumber, Violation, Amount, VioTime, Location, status)
+                    SELECT id, CarNumber, Violation, Amount, VioTime, Location, 'unpaid' FROM Fines
+                ''')
+                cursor.execute("DROP TABLE Fines")
+                cursor.execute("ALTER TABLE Fines_new RENAME TO Fines")
+                conn.commit()
+        conn.close()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    ensure_db()
     fines = None
     search_query = ""
     error = None
-    
+    success = None
+
     if request.method == 'POST':
         search_query = request.form.get('car_number', '').strip().upper()
-        
+
         if not search_query:
             error = "⚠️ Введите номер автомобиля"
         else:
             try:
                 conn = sqlite3.connect(get_db_path())
                 cursor = conn.cursor()
-                cursor.execute("SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?)", (search_query,))
+                cursor.execute("SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?) AND status = 'unpaid'", (search_query,))
                 fines = cursor.fetchall()
                 conn.close()
-                # Сохраняем результаты поиска в сессии
-                session['last_fines'] = fines
-                session['last_query'] = search_query
+                success = f"✅ Поиск выполнен для номера: {search_query}"
             except Exception as e:
                 error = f"❌ Ошибка соединения с базой данных"
-    else:
-        # При GET-запросе (обновление страницы) показываем пустую форму
-        # Очищаем сессию от старых результатов поиска
-        session.pop('last_fines', None)
-        session.pop('last_query', None)
-    
-    return render_template('index.html', fines=fines, query=search_query, error=error)
+    # GET запрос - оставляем fines=None, search_query="" чтобы страница была чистой
+
+    return render_template('index.html', fines=fines, query=search_query, error=error, success=success)
 
 
 @app.route('/pay', methods=['POST'])
 def pay():
+    ensure_db()
     fine_id = request.form.get('fine_id')
     car_number = request.form.get('car_number', '').strip().upper()
+    success = None
 
     if fine_id:
         conn = sqlite3.connect(get_db_path())
         cursor = conn.cursor()
-        cursor.execute("DELETE FROM Fines WHERE id = ?", (fine_id,))
+        # Помечаем штраф как оплаченный вместо удаления
+        cursor.execute("UPDATE Fines SET status = 'paid' WHERE id = ?", (fine_id,))
         conn.commit()
 
-        # После оплаты перезагружаем список штрафов для этого автомобиля
+        # После оплаты перезагружаем список неоплаченных штрафов для этого автомобиля
         cursor.execute(
-            "SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?)",
+            "SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?) AND status = 'unpaid'",
             (car_number,)
         )
         fines = cursor.fetchall()
         conn.close()
+        success = "✅ Штраф успешно оплачен"
     else:
         fines = None
 
-    return render_template('index.html', fines=fines, query=car_number)
+    return render_template('index.html', fines=fines, query=car_number, success=success)
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
@@ -120,6 +207,7 @@ def admin_logout():
 def admin():
     if not session.get('admin_logged'):
         return redirect(url_for('admin_login'))
+    ensure_db()
     
     error = None
     debug_info = []
@@ -142,6 +230,7 @@ def admin():
     except Exception as e:
         debug_info.append(f"💥 Ошибка: {str(e)}")
     
+    success = None
     if request.method == 'POST':
         car_number = request.form.get('car_number', '').strip().upper()
         violation = request.form.get('violation', '').strip()
@@ -156,20 +245,17 @@ def admin():
                 amount = float(amount) if amount else 0.0
                 conn = sqlite3.connect(get_db_path())
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location) VALUES (?, ?, ?, ?, ?)",
+                cursor.execute("INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location, status) VALUES (?, ?, ?, ?, ?, 'unpaid')",
                                (car_number, violation, amount, vio_time, location))
                 conn.commit()
                 conn.close()
-                return redirect(url_for('admin'))
+                success = f"✅ Нарушение для {car_number} успешно добавлено"
             except ValueError:
                 error = "Сумма штрафа должна быть числом"
             except Exception as e:
                 error = f"Ошибка базы данных: {str(e)}"
-                
-    return render_template('admin.html', error=error, debug_info=debug_info)
 
-# Initialize database on module load
-init_db()
+    return render_template('admin.html', error=error, success=success, debug_info=debug_info)
 
 if __name__ == '__main__':
     debug_mode = not os.environ.get('VERCEL')
