@@ -22,133 +22,75 @@ else:
 def get_db_path():
     return DB_PATH
 
-def find_original_db():
-    """Ищем database.db в разных местах — Vercel может положить его рядом с lambda"""
-    candidates = [
-        os.path.join(BASE_DIR, 'database.db'),           # рядом с app.py
-        os.path.join(BASE_DIR, 'api', 'database.db'),     # рядом с api/index.py
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db'),
-    ]
-    # Также ищем относительно api/index.py
-    try:
-        import api.index as _api
-        api_dir = os.path.dirname(os.path.abspath(_api.__file__))
-        candidates.append(os.path.join(api_dir, 'database.db'))
-    except Exception:
-        pass
-    for path in candidates:
-        if os.path.exists(path):
-            return path
-    return None
+INITIAL_FINES = [
+    ('А777АА77', 'Превышение скорости', 500.0, '2026-02-13 12:00', 'ул. Ленина, д. 1'),
+    ('123', '123', 123.0, '3333-03-12T03:33', '123'),
+    ('A222AA12', 'Превышение', 500.0, '2026-03-20T12:55', 'ул. Ленина 10'),
+    ('A777AA774', 'Превышение', 500.0, '2026-04-07T08:53', 'ул. Ленина 10'),
+]
 
 def ensure_db():
-    """На Vercel: копируем базу из репозитория в /tmp если нужно, и гарантируем структуру"""
-    if os.environ.get('VERCEL'):
-        if not os.path.exists(DB_PATH):
-            original_db = find_original_db()
-            if original_db:
-                import shutil
-                shutil.copyfile(original_db, DB_PATH)
-            else:
-                # Если файл не деплоился — создаём базу с нуля
-                conn = sqlite3.connect(DB_PATH)
-                cursor = conn.cursor()
-                cursor.execute('''
-                    CREATE TABLE Fines (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        CarNumber TEXT NOT NULL,
-                        Violation TEXT,
-                        Amount REAL,
-                        VioTime TEXT,
-                        Location TEXT,
-                        status TEXT DEFAULT 'unpaid'
-                    )
-                ''')
-                conn.commit()
-                conn.close()
-                return
-        # Проверяем структуру таблицы
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Fines'")
-        if not cursor.fetchone():
-            cursor.execute('''
-                CREATE TABLE Fines (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    CarNumber TEXT NOT NULL,
-                    Violation TEXT,
-                    Amount REAL,
-                    VioTime TEXT,
-                    Location TEXT,
-                    status TEXT DEFAULT 'unpaid'
+    """Гарантируем что база существует с правильной структурой и начальными данными"""
+    needs_seed = False
+
+    if not os.path.exists(DB_PATH):
+        needs_seed = True
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Создаём таблицу если нет
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Fines'")
+    if not cursor.fetchone():
+        cursor.execute('''
+            CREATE TABLE Fines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                CarNumber TEXT NOT NULL,
+                Violation TEXT,
+                Amount REAL,
+                VioTime TEXT,
+                Location TEXT,
+                status TEXT DEFAULT 'unpaid'
+            )
+        ''')
+        conn.commit()
+        needs_seed = True
+
+    # Миграция: добавляем колонку status если нет
+    cursor.execute("PRAGMA table_info(Fines)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'status' not in columns:
+        cursor.execute('''
+            CREATE TABLE Fines_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                CarNumber TEXT NOT NULL,
+                Violation TEXT,
+                Amount REAL,
+                VioTime TEXT,
+                Location TEXT,
+                status TEXT DEFAULT 'unpaid'
+            )
+        ''')
+        cursor.execute('''
+            INSERT INTO Fines_new (id, CarNumber, Violation, Amount, VioTime, Location, status)
+            SELECT id, CarNumber, Violation, Amount, VioTime, Location, 'unpaid' FROM Fines
+        ''')
+        cursor.execute("DROP TABLE Fines")
+        cursor.execute("ALTER TABLE Fines_new RENAME TO Fines")
+        conn.commit()
+
+    # Сеем начальные данные если база пустая (холодный старт на Vercel)
+    if needs_seed:
+        cursor.execute("SELECT COUNT(*) FROM Fines")
+        if cursor.fetchone()[0] == 0:
+            for car, viol, amt, vtime, loc in INITIAL_FINES:
+                cursor.execute(
+                    "INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location, status) VALUES (?, ?, ?, ?, ?, 'unpaid')",
+                    (car, viol, amt, vtime, loc)
                 )
-            ''')
             conn.commit()
-            conn.close()
-            return
-        cursor.execute("PRAGMA table_info(Fines)")
-        columns = [col[1] for col in cursor.fetchall()]
-        if 'status' not in columns:
-            cursor.execute('''
-                CREATE TABLE Fines_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    CarNumber TEXT NOT NULL,
-                    Violation TEXT,
-                    Amount REAL,
-                    VioTime TEXT,
-                    Location TEXT,
-                    status TEXT DEFAULT 'unpaid'
-                )
-            ''')
-            cursor.execute('''
-                INSERT INTO Fines_new (id, CarNumber, Violation, Amount, VioTime, Location, status)
-                SELECT id, CarNumber, Violation, Amount, VioTime, Location, 'unpaid' FROM Fines
-            ''')
-            cursor.execute("DROP TABLE Fines")
-            cursor.execute("ALTER TABLE Fines_new RENAME TO Fines")
-            conn.commit()
-        conn.close()
-    else:
-        # Локально — просто гарантируем что таблица есть
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Fines'")
-        if not cursor.fetchone():
-            cursor.execute('''
-                CREATE TABLE Fines (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    CarNumber TEXT NOT NULL,
-                    Violation TEXT,
-                    Amount REAL,
-                    VioTime TEXT,
-                    Location TEXT,
-                    status TEXT DEFAULT 'unpaid'
-                )
-            ''')
-            conn.commit()
-        else:
-            cursor.execute("PRAGMA table_info(Fines)")
-            columns = [col[1] for col in cursor.fetchall()]
-            if 'status' not in columns:
-                cursor.execute('''
-                    CREATE TABLE Fines_new (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        CarNumber TEXT NOT NULL,
-                        Violation TEXT,
-                        Amount REAL,
-                        VioTime TEXT,
-                        Location TEXT,
-                        status TEXT DEFAULT 'unpaid'
-                    )
-                ''')
-                cursor.execute('''
-                    INSERT INTO Fines_new (id, CarNumber, Violation, Amount, VioTime, Location, status)
-                    SELECT id, CarNumber, Violation, Amount, VioTime, Location, 'unpaid' FROM Fines
-                ''')
-                cursor.execute("DROP TABLE Fines")
-                cursor.execute("ALTER TABLE Fines_new RENAME TO Fines")
-                conn.commit()
-        conn.close()
+
+    conn.close()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -237,8 +179,7 @@ def admin():
     debug_info.append(f"📁 База существует: {'✅ ДА' if os.path.exists(get_db_path()) else '❌ НЕТ'}")
     
     if os.environ.get('VERCEL'):
-        found_db = find_original_db()
-        debug_info.append(f"📁 Исходная база: {found_db if found_db else '❌ НЕ НАЙДЕНА'}")
+        debug_info.append(f"📁 Исходная база: данные сеются из кода")
     
     try:
         conn = sqlite3.connect(get_db_path())
