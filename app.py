@@ -31,53 +31,17 @@ def get_db_path():
 def init_db():
     conn = sqlite3.connect(get_db_path())
     cursor = conn.cursor()
-    
-    # Проверяем существование таблицы и её структуру
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Fines'")
-    table_exists = cursor.fetchone()
-    
-    if table_exists:
-        # Проверяем наличие колонки status
-        cursor.execute("PRAGMA table_info(Fines)")
-        columns = [col[1] for col in cursor.fetchall()]
-        
-        if 'status' not in columns:
-            # Миграция: создаем новую таблицу с правильной структурой
-            cursor.execute('''
-                CREATE TABLE Fines_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    CarNumber TEXT NOT NULL,
-                    Violation TEXT,
-                    Amount REAL,
-                    VioTime TEXT,
-                    Location TEXT,
-                    status TEXT DEFAULT 'unpaid'
-                )
-            ''')
-            # Копируем данные из старой таблицы
-            cursor.execute('''
-                INSERT INTO Fines_new (id, CarNumber, Violation, Amount, VioTime, Location, status)
-                SELECT id, CarNumber, Violation, Amount, VioTime, Location, 'unpaid' FROM Fines
-            ''')
-            # Удаляем старую таблицу и переименовываем новую
-            cursor.execute("DROP TABLE Fines")
-            cursor.execute("ALTER TABLE Fines_new RENAME TO Fines")
-            conn.commit()
-    else:
-        # Создаем таблицу если её нет
-        cursor.execute('''
-            CREATE TABLE Fines (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                CarNumber TEXT NOT NULL,
-                Violation TEXT,
-                Amount REAL,
-                VioTime TEXT,
-                Location TEXT,
-                status TEXT DEFAULT 'unpaid'
-            )
-        ''')
-        conn.commit()
-    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Fines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            CarNumber TEXT NOT NULL,
+            Violation TEXT,
+            Amount REAL,
+            VioTime TEXT,
+            Location TEXT
+        )
+    ''')
+    conn.commit()
     conn.close()
 
 @app.route('/', methods=['GET', 'POST'])
@@ -85,53 +49,55 @@ def index():
     fines = None
     search_query = ""
     error = None
-    success = None
-
+    
     if request.method == 'POST':
         search_query = request.form.get('car_number', '').strip().upper()
-
+        
         if not search_query:
             error = "⚠️ Введите номер автомобиля"
         else:
             try:
                 conn = sqlite3.connect(get_db_path())
                 cursor = conn.cursor()
-                cursor.execute("SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?) AND status = 'unpaid'", (search_query,))
+                cursor.execute("SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?)", (search_query,))
                 fines = cursor.fetchall()
                 conn.close()
-                success = f"✅ Поиск выполнен для номера: {search_query}"
+                # Сохраняем результаты поиска в сессии
+                session['last_fines'] = fines
+                session['last_query'] = search_query
             except Exception as e:
                 error = f"❌ Ошибка соединения с базой данных"
-    # GET запрос - оставляем fines=None, search_query="" чтобы страница была чистой
-
-    return render_template('index.html', fines=fines, query=search_query, error=error, success=success)
+    else:
+        # При GET-запросе (обновление страницы) показываем пустую форму
+        # Очищаем сессию от старых результатов поиска
+        session.pop('last_fines', None)
+        session.pop('last_query', None)
+    
+    return render_template('index.html', fines=fines, query=search_query, error=error)
 
 
 @app.route('/pay', methods=['POST'])
 def pay():
     fine_id = request.form.get('fine_id')
     car_number = request.form.get('car_number', '').strip().upper()
-    success = None
 
     if fine_id:
         conn = sqlite3.connect(get_db_path())
         cursor = conn.cursor()
-        # Помечаем штраф как оплаченный вместо удаления
-        cursor.execute("UPDATE Fines SET status = 'paid' WHERE id = ?", (fine_id,))
+        cursor.execute("DELETE FROM Fines WHERE id = ?", (fine_id,))
         conn.commit()
 
-        # После оплаты перезагружаем список неоплаченных штрафов для этого автомобиля
+        # После оплаты перезагружаем список штрафов для этого автомобиля
         cursor.execute(
-            "SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?) AND status = 'unpaid'",
+            "SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER(?)",
             (car_number,)
         )
         fines = cursor.fetchall()
         conn.close()
-        success = "✅ Штраф успешно оплачен"
     else:
         fines = None
 
-    return render_template('index.html', fines=fines, query=car_number, success=success)
+    return render_template('index.html', fines=fines, query=car_number)
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():
@@ -176,7 +142,6 @@ def admin():
     except Exception as e:
         debug_info.append(f"💥 Ошибка: {str(e)}")
     
-    success = None
     if request.method == 'POST':
         car_number = request.form.get('car_number', '').strip().upper()
         violation = request.form.get('violation', '').strip()
@@ -191,17 +156,17 @@ def admin():
                 amount = float(amount) if amount else 0.0
                 conn = sqlite3.connect(get_db_path())
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location, status) VALUES (?, ?, ?, ?, ?, 'unpaid')",
+                cursor.execute("INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location) VALUES (?, ?, ?, ?, ?)",
                                (car_number, violation, amount, vio_time, location))
                 conn.commit()
                 conn.close()
-                success = f"✅ Нарушение для {car_number} успешно добавлено"
+                return redirect(url_for('admin'))
             except ValueError:
                 error = "Сумма штрафа должна быть числом"
             except Exception as e:
                 error = f"Ошибка базы данных: {str(e)}"
-
-    return render_template('admin.html', error=error, success=success, debug_info=debug_info)
+                
+    return render_template('admin.html', error=error, debug_info=debug_info)
 
 # Initialize database on module load
 init_db()
