@@ -22,12 +22,31 @@ else:
 def get_db_path():
     return DB_PATH
 
+def find_original_db():
+    """Ищем database.db в разных местах — Vercel может положить его рядом с lambda"""
+    candidates = [
+        os.path.join(BASE_DIR, 'database.db'),           # рядом с app.py
+        os.path.join(BASE_DIR, 'api', 'database.db'),     # рядом с api/index.py
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db'),
+    ]
+    # Также ищем относительно api/index.py
+    try:
+        import api.index as _api
+        api_dir = os.path.dirname(os.path.abspath(_api.__file__))
+        candidates.append(os.path.join(api_dir, 'database.db'))
+    except Exception:
+        pass
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
+
 def ensure_db():
     """На Vercel: копируем базу из репозитория в /tmp если нужно, и гарантируем структуру"""
     if os.environ.get('VERCEL'):
-        original_db = os.path.join(BASE_DIR, 'database.db')
         if not os.path.exists(DB_PATH):
-            if os.path.exists(original_db):
+            original_db = find_original_db()
+            if original_db:
                 import shutil
                 shutil.copyfile(original_db, DB_PATH)
             else:
@@ -218,7 +237,8 @@ def admin():
     debug_info.append(f"📁 База существует: {'✅ ДА' if os.path.exists(get_db_path()) else '❌ НЕТ'}")
     
     if os.environ.get('VERCEL'):
-        debug_info.append(f"📁 Исходная база существует: {'✅ ДА' if os.path.exists(os.path.join(BASE_DIR, 'database.db')) else '❌ НЕТ'}")
+        found_db = find_original_db()
+        debug_info.append(f"📁 Исходная база: {found_db if found_db else '❌ НЕ НАЙДЕНА'}")
     
     try:
         conn = sqlite3.connect(get_db_path())
