@@ -3,244 +3,200 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Админ-панель — ТехноМаркет</title>
+    <title>Панель инспектора | Добавление штрафа</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; }
-        
-        .admin-header {
-            background: #1a1a1a;
-            padding: 1rem 2rem;
+        :root {
+            --primary: #4361ee;
+            --success: #3872be;
+            --bg: #f0f2f5;
+            --text: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
+            min-height: 100vh;
         }
-        .admin-header h1 {
-            color: white;
-            font-size: 1.3rem;
-            font-weight: 600;
-        }
-        .admin-header a {
-            color: rgba(255,255,255,0.7);
-            text-decoration: none;
-            margin-left: 1.5rem;
-            font-size: 0.9rem;
-            transition: color 0.2s;
-        }
-        .admin-header a:hover { color: white; }
-        
-        .container {
-            max-width: 1400px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-        
-        .section {
+
+        .admin-card {
             background: white;
-            border-radius: 12px;
-            margin-bottom: 2rem;
-            border: 1px solid #e5e5e5;
-            overflow: hidden;
-        }
-        .section-header {
-            padding: 1.25rem 1.5rem;
-            border-bottom: 1px solid #e5e5e5;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .section-header h2 {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-        .section-content {
-            padding: 1.5rem;
-            overflow-x: auto;
-        }
-        
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 0.75rem;
-            text-align: left;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 0.9rem;
-        }
-        th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #374151;
-        }
-        tr:hover {
-            background: #f8f9fa;
-        }
-        
-        .btn { 
-            display: inline-block; 
-            padding: 0.5rem 1rem; 
-            background: #0066ff; 
-            color: white; 
-            text-decoration: none; 
-            border-radius: 6px; 
-            font-size: 0.8rem;
-            font-weight: 500;
-            transition: background 0.2s;
-            border: none;
-            cursor: pointer;
-        }
-        .btn:hover { background: #0052cc; }
-        .btn-danger { background: #ef4444; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn-sm {
-            padding: 0.35rem 0.7rem;
-            font-size: 0.75rem;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 0.25rem 0.6rem;
+            padding: 40px;
             border-radius: 20px;
-            font-size: 0.7rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .admin-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        /* ТВОЯ ИКОНКА В ЗАГОЛОВКЕ */
+        .admin-logo {
+            width: 60px; /* Здесь можно менять размер иконки */
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            margin: 0;
+            color: var(--text);
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
             font-weight: 600;
+            font-size: 14px;
+            color: #666;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #edeff2;
+            border-radius: 10px;
+            font-size: 15px;
+            box-sizing: border-box;
+            transition: 0.3s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            outline: none;
+            background: #fff;
+        }
+
+        /* Автоматические заглавные буквы для госномера */
+        input[name="car_number"] {
             text-transform: uppercase;
+            font-weight: bold;
+            letter-spacing: 1px;
         }
-        .status-new { background: #dbeafe; color: #1d4ed8; }
-        .status-processing { background: #fef3c7; color: #d97706; }
-        .status-completed { background: #d1fae5; color: #059669; }
-        .status-cancelled { background: #fee2e2; color: #dc2626; }
-        
-        .image-preview {
-            width: 50px;
-            height: 50px;
-            object-fit: cover;
-            border-radius: 6px;
-            background: #f5f5f5;
+
+button {
+    width: 100%;
+    padding: 20px;
+    background: var(--success);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.3s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+        button:hover {
+            background: #277cae;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
         }
-        
-        .flash { 
-            padding: 1rem; 
-            margin-bottom: 1.5rem; 
-            background: #e8f5e9; 
-            border-radius: 8px; 
-            color: #2e7d32;
-            font-size: 0.9rem;
-            border: 1px solid #c8e6c9;
+
+        /* ТВОЯ ИКОНКА НА КНОПКЕ */
+        .btn-icon {
+            width: 20px;
+            height: 20px;
+            filter: brightness(0) invert(1); /* Делает иконку белой */
         }
-        
-        select {
-            padding: 0.3rem 0.5rem;
-            border: 1px solid #e5e5e5;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            background: white;
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 25px;
+            text-decoration: none;
+            color: #888;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+
+        .back-link:hover {
+            color: var(--primary);
         }
     </style>
 </head>
 <body>
-    <header class="admin-header">
-        <h1>Административная панель</h1>
-        <div>
-            <a href="/">На сайт</a>
-            <a href="/admin/logout">Выйти</a>
+
+    <div class="admin-card">
+        <div class="admin-header">
+            <img src="{{ url_for('static', filename='images/admin.png') }}" alt="Admin" class="admin-logo">
+            <h2>Новое нарушение</h2>
         </div>
-    </header>
 
-    <div class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
+        {% if success %}
+        <div style="margin-bottom: 20px; padding: 16px; background: #d4edda; border-radius: 12px; color: #155724; border-left: 4px solid #28a745; text-align: center;">
+            {{ success }}
+        </div>
+        {% endif %}
 
-        <section class="section">
-            <div class="section-header">
-                <h2>Товары</h2>
-                <a href="/admin/product/add" class="btn">+ Добавить товар</a>
-            </div>
-            <div class="section-content">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Изображение</th>
-                            <th>Название</th>
-                            <th>Категория</th>
-                            <th>Цена</th>
-                            <th>Остаток</th>
-                            <th>Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for product in products %}
-                        <tr>
-                            <td>{{ product.id }}</td>
-                            <td><img src="{{ product.image_data or '/static/default.png' }}" class="image-preview" onerror="this.src='/static/default.png'"></td>
-                            <td>{{ product.name }}</td>
-                            <td>{{ product.category or '—' }}</td>
-                            <td>{{ product.price }} ₽</td>
-                            <td>{{ product.stock }}</td>
-                            <td>
-                                <a href="/admin/product/edit/{{ product.id }}" class="btn btn-sm">Редактировать</a>
-                                <a href="/admin/product/delete/{{ product.id }}" class="btn btn-danger btn-sm" onclick="return confirm('Удалить товар?')">Удалить</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
+        {% if error %}
+        <div style="margin-bottom: 20px; padding: 16px; background: #f8d7da; border-radius: 12px; color: #721c24; border-left: 4px solid #dc3545; text-align: center;">
+            {{ error }}
+        </div>
+        {% endif %}
 
-        <section class="section">
-            <div class="section-header">
-                <h2>Заказы</h2>
+        <form method="POST">
+            <div class="form-group">
+                <label>Госномер автомобиля</label>
+                <input type="text" name="car_number" placeholder="А123ВЕ77" 
+                       pattern="^[А-Яа-яA-Za-z]{1}\d{3}[А-Яа-яA-Za-z]{2}\d{2,3}$" 
+                       title="Формат: буква, 3 цифры, 2 буквы, регион" required>
             </div>
-            <div class="section-content">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Клиент</th>
-                            <th>Телефон</th>
-                            <th>Адрес</th>
-                            <th>Сумма</th>
-                            <th>Статус</th>
-                            <th>Дата</th>
-                            <th>Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for order in orders %}
-                        <tr>
-                            <td>{{ order.id }}</td>
-                            <td>{{ order.customer_name }}</td>
-                            <td>{{ order.customer_phone or '—' }}</td>
-                            <td>{{ order.customer_address or '—' }}</td>
-                            <td>{{ order.total }} ₽</td>
-                            <td>
-                                <span class="status-badge status-{{ order.status }}">{{ order.status }}</span>
-                                <form method="POST" action="/admin/order/status/{{ order.id }}" style="display: inline; margin-left: 0.5rem;" id="status-form-{{ order.id }}">
-                                    <select name="status" onchange="document.getElementById('status-form-{{ order.id }}').submit()">
-                                        <option value="new" {% if order.status == 'new' %}selected{% endif %}>Новый</option>
-                                        <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>В обработке</option>
-                                        <option value="completed" {% if order.status == 'completed' %}selected{% endif %}>Выполнен</option>
-                                        <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Отменен</option>
-                                    </select>
-                                </form>
-                            </td>
-                            <td>{{ order.date.strftime('%d.%m.%Y %H:%M') }}</td>
-                            <td>
-                                <a href="/admin/order/delete/{{ order.id }}" class="btn btn-danger btn-sm" onclick="return confirm('Удалить заказ?')">Удалить</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+
+            <div class="form-group">
+                <label>Тип нарушения</label>
+                <input type="text" name="violation" placeholder="Напр: Превышение скорости" required>
             </div>
-        </section>
+
+            <div class="form-group">
+<label>Сумма штрафа (₽)</label>
+                <input type="number" name="amount" placeholder="500" required>
+            </div>
+
+            <div class="form-group">
+                <label>Дата и время</label>
+                <input type="datetime-local" name="vio_time" required>
+            </div>
+
+            <div class="form-group">
+                <label>Место фиксации</label>
+                <input type="text" name="location" placeholder="ул. Ленина, д. 10" required>
+            </div>
+
+            <button type="submit">
+                <img src="{{ url_for('static', filename='images/plus.png') }}" class="btn-icon">
+                Сохранить в базу
+            </button>
+        </form>
+
+        <!-- Отладочная информация только для админа -->
+        {% if debug_info %}
+        <div style="margin-top: 30px; padding: 16px; background: #e7f5ff; border-radius: 12px; font-family: monospace; font-size: 12px;">
+            <div style="font-weight: bold; margin-bottom: 10px;">🔧 Статус системы:</div>
+            {% for line in debug_info %}
+            <div style="padding: 3px 0;">{{ line }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div style="margin-top: 20px; display: flex; justify-content: space-between;">
+            <a href="/" class="back-link">← Вернуться к поиску</a>
+            <a href="/admin/logout" class="back-link" style="color: #dc2626;">Выйти ✕</a>
+        </div>
     </div>
+
 </body>
 </html>

@@ -3,88 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ТехноМаркет</title>
+    <title>Поиск штрафов ГИБДД</title>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'Segoe UI',system-ui,sans-serif;background:#fafafa;color:#1a1a1a;line-height:1.6;display:flex;flex-direction:column;min-height:100vh}
-        .header{background:#fff;padding:1rem 2rem;position:sticky;top:0;z-index:100;border-bottom:1px solid #e5e5e5}
-        .header-inner{max-width:1200px;margin:0 auto;display:flex;justify-content:space-between;align-items:center}
-        .logo{font-size:1.5rem;font-weight:700;color:#0066ff;letter-spacing:-0.5px}
-        .nav{display:flex;gap:2rem;align-items:center}
-        .nav a{text-decoration:none;color:#666;font-size:0.9rem;font-weight:500;display:flex;align-items:center;gap:0.4rem;transition:color .2s}
-        .nav a:hover{color:#0066ff}
-        .cart-badge{background:#0066ff;color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:0.7rem;margin-left:2px}
-        .hero{background:linear-gradient(135deg,#0066ff,#0052cc);color:#fff;padding:4rem 2rem;text-align:center;margin-bottom:3rem}
-        .hero h1{font-size:2.5rem;font-weight:700;margin-bottom:.5rem}
-        .hero p{font-size:1.1rem;opacity:.9}
-        .container{max-width:1200px;margin:0 auto;padding:0 1rem}
-        .section-title{font-size:1.3rem;font-weight:600;margin-bottom:1.5rem}
-        .products-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:1.5rem;margin-bottom:3rem}
-        .product-card{background:#fff;border-radius:12px;overflow:hidden;transition:transform .2s,box-shadow .2s;border:1px solid #e5e5e5}
-        .product-card:hover{transform:translateY(-4px);box-shadow:0 12px 24px rgba(0,0,0,.1)}
-        .product-image{width:100%;height:200px;object-fit:cover;background:#f5f5f5}
-        .product-info{padding:1.25rem}
-        .product-name{font-weight:600;margin-bottom:.5rem;font-size:1rem}
-        .product-price{font-size:1.25rem;font-weight:700;color:#0066ff;margin-bottom:1rem}
-        .btn{display:inline-block;padding:.6rem 1.2rem;background:#0066ff;color:#fff;text-decoration:none;border-radius:8px;font-size:.875rem;font-weight:500;border:none;cursor:pointer;transition:background .2s}
-        .btn:hover{background:#0052cc}
-        .btn-added{background:#10b981}
-        .flash{padding:1rem;margin-bottom:1.5rem;background:#e8f5e9;border-radius:8px;color:#2e7d32;font-size:.9rem;border:1px solid #c8e6c9}
-        .footer{background:#1a1a1a;color:#fff;padding:2rem;text-align:center;margin-top:auto;font-size:.875rem}
+        :root { --primary: #4361ee; --success: #2ecc71; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #e9ecef; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .card { background: white; padding: 40px; border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); width: 95%; max-width: 700px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .logo-box { display: flex; align-items: center; gap: 12px; }
+        .icon-logo { width: 100px; height: 100px; object-fit: contain; }
+        
+        .admin-link { text-decoration: none; color: #6c757d; font-size: 14px; display: flex; align-items: center; gap: 5px; padding: 8px 12px; border-radius: 8px; background: #f1f3f5; transition: 0.2s; }
+        .admin-link:hover { background: #e2e6ea; }
+        .icon-small { width: 25px; }
+
+        .search-form { display: flex; gap: 12px; }
+        input { flex: 1; padding: 16px 20px; border: 2px solid #dee2e6; border-radius: 14px; font-size: 16px; outline: none; transition: 0.3s; text-transform: uppercase; }
+        input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(67, 97, 238, 0.1); }
+        .input-wrapper { display: flex; flex-direction: column; flex: 1; }
+        .input-hint { margin-top: 6px; font-size: 12px; color: #868e96; }
+
+        .btn-search { background: var(--primary); color: white; border: none; padding: 0 30px; border-radius: 14px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
+        .btn-search:hover { transform: translateY(-2px); box-shadow: 0 5px 12px rgba(67, 97, 238, 0.3); }
+
+        .empty-state { text-align: center; margin-top: 50px; padding: 20px; }
+        .icon-status { width: 200px; margin-bottom: 20px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+        th { text-align: left; padding: 12px; color: #adb5bd; font-size: 13px; text-transform: uppercase; }
+        td { padding: 16px 12px; border-bottom: 1px solid #f1f3f5; vertical-align: middle; }
+        .badge-price { background: #fff0f0; color: #e63946; padding: 5px 10px; border-radius: 8px; font-weight: bold; }
+        .btn-pay { background: var(--success); color: #fff; border: none; padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; }
+        .btn-pay:hover { opacity: 0.9; }
     </style>
 </head>
 <body>
-    <header class="header">
-        <div class="header-inner">
-            <div class="logo">ТехноМаркет</div>
-            <nav class="nav">
-                <a href="/">Главная</a>
-                <a href="/products">Товары</a>
-                <a href="/cart">Корзина <span class="cart-badge" id="cart-count">0</span></a>
-                <a href="/admin/login">Админ</a>
-            </nav>
+    <div class="card">
+        <div class="header">
+            <div class="logo-box">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" class="icon-logo">
+                <h2 style="margin:0; color:#333;">Проверка нарушений ПДД</h2>
+            </div>
+            <a href="/admin" class="admin-link">
+                <img src="{{ url_for('static', filename='images/admin.png') }}" class="icon-small"> Панель
+            </a>
         </div>
-    </header>
-    <section class="hero">
-        <h1>Бытовая техника</h1>
-        <p>Качество, проверенное временем</p>
-    </section>
-    <main class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="flash">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        <h2 class="section-title">Популярные товары</h2>
-        <div class="products-grid">
-            {% for product in products %}
-            <article class="product-card">
-                <img src="{{ product.image_data or '/static/default.png' }}" alt="{{ product.name }}" class="product-image" onerror="this.src='/static/default.png'">
-                <div class="product-info">
-                    <h3 class="product-name">{{ product.name }}</h3>
-                    <div class="product-price">{{ product.price }} ₽</div>
-                    <button class="btn" onclick="addToCart({{ product.id }}, '{{ product.name }}', {{ product.price }}, '{{ product.image_data or '/static/default.png' }}')">В корзину</button>
+
+<form method="POST" class="search-form">
+            <div class="input-wrapper">
+                <input type="text" name="car_number" placeholder="Госномер"
+                       pattern="^[А-Яа-яA-Za-z]{1}\d{3}[А-Яа-яA-Za-z]{2}\d{2,3}$">
+                <div class="input-hint">Пример: А000АА77</div>
+            </div>
+            <button type="submit" class="btn-search">
+                <img src="{{ url_for('static', filename='images/search.png') }}" class="icon-small" style="filter: brightness(0) invert(1);"> Найти
+            </button>
+        </form>
+
+        <!-- Сообщения об ошибках -->
+        {% if error %}
+        <div style="margin-top: 20px; padding: 16px; background: #fff3cd; border-radius: 12px; color: #856404; border-left: 4px solid #ffc107;">
+            {{ error }}
+        </div>
+        {% endif %}
+
+        {% if success %}
+        <div style="margin-top: 20px; padding: 16px; background: #d4edda; border-radius: 12px; color: #155724; border-left: 4px solid #28a745;">
+            {{ success }}
+        </div>
+        {% endif %}
+
+        {% if fines is not none %}
+            {% if fines %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Нарушение</th>
+                            <th>Сумма</th>
+                            <th>Место</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fine in fines %}
+                        <tr>
+                            <td><strong>{{ fine[1] }}</strong><br><small style="color:#999;">{{ fine[3] }}</small></td>
+                            <td><span class="badge-price">{{ fine[2] }} ₽</span></td>
+                            <td>{{ fine[4] }}</td>
+                            <td>
+                                <form method="POST" action="{{ url_for('pay') }}">
+                                    <input type="hidden" name="fine_id" value="{{ fine[0] }}">
+                                    <input type="hidden" name="car_number" value="{{ query }}">
+                                    <button type="submit" class="btn-pay">Оплатить</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+<img src="{{ url_for('static', filename='images/success.png') }}" class="icon-status">
+                    <p style="color: #6c757d;">Для автомобиля <b>{{ query }}</b> штрафов не найдено.</p>
                 </div>
-            </article>
-            {% endfor %}
-        </div>
-    </main>
-    <footer class="footer"><p> 2026 ТехноМаркет</p></footer>
-    <script>
-    function getCart(){return JSON.parse(localStorage.getItem('cart')||'[]')}
-    function saveCart(c){localStorage.setItem('cart',JSON.stringify(c));updateBadge()}
-    function updateBadge(){document.getElementById('cart-count').textContent=getCart().length}
-    function addToCart(id,name,price,image){
-        let cart=getCart();
-        let item=cart.find(i=>i.id===id);
-        if(item){item.qty++}else{cart.push({id:id,name:name,price:price,image:image,qty:1})}
-        saveCart(cart);
-        let btn=event.target;btn.textContent='Добавлено!';btn.classList.add('btn-added');
-        setTimeout(()=>{btn.textContent='В корзину';btn.classList.remove('btn-added')},1000)
-    }
-    updateBadge();
-    </script>
+            {% endif %}
+        {% endif %}
+    </div>
 </body>
 </html>

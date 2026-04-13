@@ -2,14 +2,30 @@
   "version": 2,
   "builds": [
     {
-      "src": "app.py",
-      "use": "@vercel/python"
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb",
+        "runtime": "python3.11"
+      }
     }
   ],
   "routes": [
     {
+      "src": "/static/(.*)",
+      "dest": "/static/$1",
+      "headers": { "Cache-Control": "public, max-age=31536000" }
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
-      "dest": "app.py"
+      "dest": "api/index.py"
     }
-  ]
+  ],
+  "env": {
+    "VERCEL": "1",
+    "FLASK_ENV": "production"
+  }
 }
