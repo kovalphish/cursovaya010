@@ -14,17 +14,27 @@ app = Flask(
 app.secret_key = 'bdf872a9d3ef5c7a8b9e1d2f3a4c5b6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2'
 ADMIN_PASSWORD = 'admin123'
 
-# На Vercel с Postgres — используем Postgres. Иначе — SQLite.
-USE_POSTGRES = IS_VERCEL and DATABASE_URL
+# Пробуем подключить Postgres, если не получается — SQLite
+_psycopg2 = None
+USE_POSTGRES = False
+DB_LABEL = 'SQLite'
+PH = '?'
 
-if USE_POSTGRES:
-    import psycopg2
-    PH = '%s'
-    DB_LABEL = 'PostgreSQL'
-else:
+if IS_VERCEL and DATABASE_URL:
+    try:
+        import psycopg2 as _psycopg2
+        # Проверяем что реально можем подключиться
+        _test = _psycopg2.connect(DATABASE_URL)
+        _test.close()
+        USE_POSTGRES = True
+        PH = '%s'
+        DB_LABEL = 'PostgreSQL'
+    except Exception:
+        USE_POSTGRES = False
+        DB_LABEL = 'SQLite (Postgres недоступен)'
+
+if not USE_POSTGRES:
     DB_PATH = os.path.join(BASE_DIR, 'database.db')
-    PH = '?'
-    DB_LABEL = 'SQLite'
 
 INITIAL_FINES = [
     ('А777АА77', 'Превышение скорости', 500.0, '2026-02-13 12:00', 'ул. Ленина, д. 1'),
@@ -33,59 +43,67 @@ INITIAL_FINES = [
 
 def get_conn():
     if USE_POSTGRES:
-        return psycopg2.connect(DATABASE_URL)
+        return _psycopg2.connect(DATABASE_URL)
     return sqlite3.connect(DB_PATH)
 
 def init_db():
-    conn = get_conn()
-    cursor = conn.cursor()
+    try:
+        conn = get_conn()
+    except Exception:
+        return
 
-    if USE_POSTGRES:
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS Fines (
-                id SERIAL PRIMARY KEY,
-                CarNumber TEXT NOT NULL,
-                Violation TEXT,
-                Amount DOUBLE PRECISION,
-                VioTime TEXT,
-                Location TEXT,
-                status TEXT DEFAULT 'unpaid'
-            )
-        ''')
-    else:
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Fines'")
-        if cursor.fetchone():
-            cursor.execute("PRAGMA table_info(Fines)")
-            columns = [col[1] for col in cursor.fetchall()]
-            if 'status' not in columns:
-                cursor.execute('''CREATE TABLE Fines_new (
+    try:
+        cursor = conn.cursor()
+
+        if USE_POSTGRES:
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS Fines (
+                    id SERIAL PRIMARY KEY,
+                    CarNumber TEXT NOT NULL,
+                    Violation TEXT,
+                    Amount DOUBLE PRECISION,
+                    VioTime TEXT,
+                    Location TEXT,
+                    status TEXT DEFAULT 'unpaid'
+                )
+            ''')
+        else:
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='Fines'")
+            if cursor.fetchone():
+                cursor.execute("PRAGMA table_info(Fines)")
+                columns = [col[1] for col in cursor.fetchall()]
+                if 'status' not in columns:
+                    cursor.execute('''CREATE TABLE Fines_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT, CarNumber TEXT NOT NULL,
+                        Violation TEXT, Amount REAL, VioTime TEXT, Location TEXT,
+                        status TEXT DEFAULT 'unpaid')''')
+                    cursor.execute('''INSERT INTO Fines_new (id, CarNumber, Violation, Amount, VioTime, Location, status)
+                        SELECT id, CarNumber, Violation, Amount, VioTime, Location, 'unpaid' FROM Fines''')
+                    cursor.execute("DROP TABLE Fines")
+                    cursor.execute("ALTER TABLE Fines_new RENAME TO Fines")
+                    conn.commit()
+                conn.close()
+                return
+            else:
+                cursor.execute('''CREATE TABLE Fines (
                     id INTEGER PRIMARY KEY AUTOINCREMENT, CarNumber TEXT NOT NULL,
                     Violation TEXT, Amount REAL, VioTime TEXT, Location TEXT,
                     status TEXT DEFAULT 'unpaid')''')
-                cursor.execute('''INSERT INTO Fines_new (id, CarNumber, Violation, Amount, VioTime, Location, status)
-                    SELECT id, CarNumber, Violation, Amount, VioTime, Location, 'unpaid' FROM Fines''')
-                cursor.execute("DROP TABLE Fines")
-                cursor.execute("ALTER TABLE Fines_new RENAME TO Fines")
-                conn.commit()
-                conn.close()
-                return
-            conn.close()
-            return
-        cursor.execute('''CREATE TABLE Fines (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, CarNumber TEXT NOT NULL,
-            Violation TEXT, Amount REAL, VioTime TEXT, Location TEXT,
-            status TEXT DEFAULT 'unpaid')''')
 
-    # Сеем данные если таблица пустая
-    cursor.execute("SELECT COUNT(*) FROM Fines")
-    if cursor.fetchone()[0] == 0:
-        for car, viol, amt, vtime, loc in INITIAL_FINES:
-            cursor.execute(
-                f"INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location, status) VALUES ({PH}, {PH}, {PH}, {PH}, {PH}, 'unpaid')",
-                (car, viol, amt, vtime, loc)
-            )
-    conn.commit()
-    conn.close()
+        cursor.execute("SELECT COUNT(*) FROM Fines")
+        if cursor.fetchone()[0] == 0:
+            for car, viol, amt, vtime, loc in INITIAL_FINES:
+                cursor.execute(
+                    f"INSERT INTO Fines (CarNumber, Violation, Amount, VioTime, Location, status) VALUES ({PH}, {PH}, {PH}, {PH}, {PH}, 'unpaid')",
+                    (car, viol, amt, vtime, loc)
+                )
+        conn.commit()
+        conn.close()
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 init_db()
 
@@ -122,14 +140,17 @@ def pay():
     success = None
 
     if fine_id:
-        conn = get_conn()
-        cursor = conn.cursor()
-        cursor.execute(f"UPDATE Fines SET status = 'paid' WHERE id = {PH}", (fine_id,))
-        conn.commit()
-        cursor.execute(f"SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER({PH}) AND status = 'unpaid'", (car_number,))
-        fines = cursor.fetchall()
-        conn.close()
-        success = "✅ Штраф успешно оплачен"
+        try:
+            conn = get_conn()
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE Fines SET status = 'paid' WHERE id = {PH}", (fine_id,))
+            conn.commit()
+            cursor.execute(f"SELECT id, Violation, Amount, VioTime, Location FROM Fines WHERE UPPER(CarNumber) = UPPER({PH}) AND status = 'unpaid'", (car_number,))
+            fines = cursor.fetchall()
+            conn.close()
+            success = "✅ Штраф успешно оплачен"
+        except Exception:
+            fines = None
     else:
         fines = None
 
